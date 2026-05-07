@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Content Agent</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0a0a0f; --surface: #12121a; --surface2: #1a1a26; --border: #2a2a3a;
+    --text: #e8e8ef; --text2: #8888a0; --accent: #22d68a; --accent2: #1ab374;
+    --danger: #ef4444; --warning: #f59e0b; --blue: #3b82f6; --purple: #a78bfa;
+    --radius: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 0 24px; border-bottom: 1px solid var(--border); margin-bottom: 32px;
+  }
+  header h1 { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; color: var(--accent); }
+  header h1 span { color: var(--text2); font-weight: 400; }
+
+  /* Navigation tabs */
+  .nav-tabs { display: flex; gap: 4px; background: var(--surface); border-radius: var(--radius); padding: 4px; margin-bottom: 28px; border: 1px solid var(--border); }
+  .nav-tab { padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text2); border: none; background: none; font-family: inherit; transition: all 0.2s; }
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active { background: var(--accent); color: #000; font-weight: 600; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* Wizard Steps */
+  .wizard-progress { display: flex; gap: 0; margin-bottom: 32px; }
+  .wizard-step {
+    flex: 1; text-align: center; padding: 12px 8px; font-size: 12px; font-weight: 600;
+    color: var(--text2); background: var(--surface); border: 1px solid var(--border);
+    position: relative; text-transform: uppercase; letter-spacing: 0.5px; cursor: default;
+  }
+  .wizard-step:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+  .wizard-step:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+  .wizard-step.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .wizard-step.done { background: var(--surface2); color: var(--accent); border-color: var(--accent2); }
+  .wizard-step .num { display: block; font-size: 18px; font-family: 'JetBrains Mono', monospace; margin-bottom: 2px; }
+
+  .step-panel { display: none; }
+  .step-panel.active { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* Cards */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px; margin-bottom: 20px;
+  }
+  .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .card .subtitle { font-size: 13px; color: var(--text2); margin-bottom: 16px; line-height: 1.5; }
+
+  /* Inputs */
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  input, textarea {
+    width: 100%; padding: 12px 14px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px;
+  }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 70px; }
+
+  /* Buttons */
+  .btn {
+    padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 14px;
+    cursor: pointer; border: none; font-family: inherit; transition: all 0.2s;
+  }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); padding: 4px 10px; font-size: 12px; }
+  .btn-danger:hover { background: var(--danger); color: #fff; }
+  .btn-row { display: flex; gap: 12px; align-items: center; margin-top: 16px; }
+
+  /* Platform Picker */
+  .platform-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .platform-btn {
+    padding: 16px; background: var(--bg); border: 2px solid var(--border); border-radius: var(--radius);
+    cursor: pointer; text-align: center; transition: all 0.2s; font-family: inherit;
+    color: var(--text);
+  }
+  .platform-btn:hover { border-color: var(--text2); }
+  .platform-btn.selected { border-color: var(--accent); background: rgba(34,214,138,0.05); }
+  .platform-btn .icon { font-size: 28px; display: block; margin-bottom: 6px; }
+  .platform-btn .name { font-weight: 600; font-size: 14px; }
+  .platform-btn .desc { font-size: 11px; color: var(--text2); margin-top: 4px; }
+
+  /* Source cards */
+  .source-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .source-item {
+    display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .source-item:hover { border-color: var(--text2); }
+  .source-item.selected { border-color: var(--accent); background: rgba(34,214,138,0.05); }
+  .source-item input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px; cursor: pointer; }
+  .source-item .info { flex: 1; }
+  .source-item .info .name { font-weight: 600; font-size: 14px; }
+  .source-item .info .meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .source-item .stat { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); text-align: right; white-space: nowrap; }
+
+  /* Psychographic chips */
+  .psych-group { margin-bottom: 16px; }
+  .psych-group h4 { font-size: 12px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; letter-spacing: 0.5px; }
+  .psych-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .psych-chip {
+    padding: 8px 16px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 20px; font-size: 13px; cursor: pointer; transition: all 0.2s;
+    user-select: none;
+  }
+  .psych-chip:hover { border-color: var(--text2); }
+  .psych-chip.selected { border-color: var(--accent); background: rgba(34,214,138,0.1); color: var(--accent); }
+
+  /* Business profile card */
+  .profile-card { background: var(--surface2); border-radius: 8px; padding: 16px; margin: 16px 0; }
+  .profile-card .label { font-size: 11px; color: var(--text2); text-transform: uppercase; margin-bottom: 4px; }
+  .profile-card .value { font-size: 14px; margin-bottom: 12px; line-height: 1.5; }
+  .profile-card .value:last-child { margin-bottom: 0; }
+  .profile-card .topics { display: flex; flex-wrap: wrap; gap: 6px; }
+  .profile-card .topic-tag { padding: 3px 10px; background: rgba(59,130,246,0.15); color: var(--blue); border-radius: 4px; font-size: 12px; }
+
+  /* Results */
+  .result-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px; margin-bottom: 16px;
+  }
+  .result-card:hover { border-color: var(--accent); }
+  .result-card .title { font-weight: 600; font-size: 15px; margin-bottom: 8px; }
+  .result-card .title a { color: var(--blue); text-decoration: none; }
+  .result-card .hook { background: var(--bg); border-left: 3px solid var(--accent); padding: 10px 14px; margin: 12px 0; font-style: italic; color: var(--accent); font-size: 14px; }
+  .result-card .summary { color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 10px; }
+  .result-card .script { background: var(--surface2); border-radius: 8px; padding: 14px; font-size: 13px; line-height: 1.6; margin-top: 10px; white-space: pre-wrap; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+  .badge-success { background: rgba(34,214,138,0.15); color: var(--accent); }
+  .badge-skip { background: rgba(255,255,255,0.05); color: var(--text2); }
+  .badge-niche { background: rgba(59,130,246,0.15); color: var(--blue); }
+
+  /* Hooks table */
+  .hooks-grid { display: grid; grid-template-columns: 1fr auto auto; gap: 1px; background: var(--border); border-radius: var(--radius); overflow: hidden; margin-top: 16px; }
+  .hooks-grid .cell { padding: 10px 14px; background: var(--surface); font-size: 13px; }
+  .hooks-grid .header { font-weight: 600; color: var(--text2); text-transform: uppercase; font-size: 11px; background: var(--surface2); }
+
+  /* Spinner */
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid transparent; border-top: 2px solid currentColor; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-card { text-align: center; padding: 40px; color: var(--text2); }
+  .loading-card .spinner { width: 32px; height: 32px; border-width: 3px; margin: 0 auto 12px; display: block; }
+  .empty-state { text-align: center; padding: 48px 20px; color: var(--text2); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+  .editable-summary { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-size: 14px; line-height: 1.6; color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 60px; }
+  .editable-summary:focus { outline: none; border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>content_agent <span>// v2</span></h1>
+    <div style="display:flex;gap:12px;">
+      <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="showPage('wizard')">🧙 Wizard</button>
+      <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="showPage('library')">📚 Library</button>
+      <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="showPage('hooks')">🪝 Hooks</button>
+    </div>
+  </header>
+
+  <!-- ===================== WIZARD PAGE ===================== -->
+  <div class="page active" id="page-wizard">
+    <div class="wizard-progress">
+      <div class="wizard-step active" id="ws-1"><span class="num">1</span>Your Business</div>
+      <div class="wizard-step" id="ws-2"><span class="num">2</span>Platforms & Sources</div>
+      <div class="wizard-step" id="ws-3"><span class="num">3</span>Your Audience</div>
+      <div class="wizard-step" id="ws-4"><span class="num">4</span>Generate</div>
+    </div>
+
+    <!-- STEP 1: Website + Niche -->
+    <div class="step-panel active" id="step-1">
+      <div class="card">
+        <h3>Tell us about your business</h3>
+        <div class="subtitle">Paste your website and we'll figure out the rest. Or just describe what you do.</div>
+
+        <div style="margin-bottom:16px;">
+          <label>Your Website</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="siteUrl" placeholder="https://yourwebsite.com" style="flex:1;" />
+            <button class="btn btn-primary" id="analyzeBtn" onclick="analyzeSite()">Analyze</button>
+          </div>
+          <div style="font-size:12px;color:var(--text2);margin-top:6px;">We'll scan your site to understand your business, audience, and topics. Takes ~10 seconds.</div>
+        </div>
+
+        <div id="profileResult" style="display:none;"></div>
+
+        <div style="margin-bottom:16px;">
+          <label>What topic do you want content about?</label>
+          <input type="text" id="nicheInput" placeholder="e.g. AI automation, cybersecurity for small business, cloud migration..." />
+          <div style="font-size:12px;color:var(--text2);margin-top:6px;">This can be your main business topic or a specific angle you want to explore.</div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="goToStep(2)" id="step1Next">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2: Platform + Source Discovery -->
+    <div class="step-panel" id="step-2">
+      <div class="card">
+        <h3>Where should we find content?</h3>
+        <div class="subtitle">Pick the platforms you care about. We'll find the best channels, subreddits, and sources for your niche.</div>
+
+        <div class="platform-grid">
+          <button class="platform-btn" data-platform="reddit" onclick="togglePlatform(this)">
+            <span class="icon">📡</span>
+            <span class="name">Reddit</span>
+            <span class="desc">Subreddits with active discussions</span>
+          </button>
+          <button class="platform-btn" data-platform="youtube" onclick="togglePlatform(this)">
+            <span class="icon">🎬</span>
+            <span class="name">YouTube</span>
+            <span class="desc">Channels with real subscriber data</span>
+          </button>
+          <button class="platform-btn" data-platform="news" onclick="togglePlatform(this)">
+            <span class="icon">📰</span>
+            <span class="name">News Sites</span>
+            <span class="desc">Google News + industry sources</span>
+          </button>
+          <button class="platform-btn" data-platform="twitter" onclick="togglePlatform(this)">
+            <span class="icon">𝕏</span>
+            <span class="name">Twitter / X</span>
+            <span class="desc">Influential accounts to follow</span>
+          </button>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="goToStep(1)">← Back</button>
+          <button class="btn btn-primary" id="discoverBtn" onclick="discoverSources()">Find Sources →</button>
+        </div>
+      </div>
+
+      <div id="sourcesResult" style="display:none;"></div>
+
+      <div id="sourcesNext" style="display:none;" class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(1)">← Back</button>
+        <button class="btn btn-primary" onclick="goToStep(3)">Next: Define Your Audience →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: Psychographics -->
+    <div class="step-panel" id="step-3">
+      <div class="card">
+        <h3>Who are you creating content for?</h3>
+        <div class="subtitle">We generated these based on your business and niche. Check the ones that describe your audience. You can select as many as you want.</div>
+
+        <div id="psychLoading" class="loading-card" style="display:none;">
+          <span class="spinner"></span>
+          <div>Generating audience profiles...</div>
+        </div>
+
+        <div id="psychResult"></div>
+
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="goToStep(2)">← Back</button>
+          <button class="btn btn-primary" onclick="goToStep(4)">Next: Generate Content →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 4: Run -->
+    <div class="step-panel" id="step-4">
+      <div class="card">
+        <h3>Ready to generate</h3>
+        <div class="subtitle">Here's what we'll do: pull articles from your selected sources, evaluate each one against your niche, match a viral hook, and write a short-form script.</div>
+
+        <div id="runSummary"></div>
+
+        <div style="margin-top:16px;">
+          <label>How many articles to process</label>
+          <input type="number" id="maxArticles" value="10" min="1" max="25" style="width:120px;" />
+          <span style="font-size:12px;color:var(--text2);margin-left:8px;">~30 seconds per article</span>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="goToStep(3)">← Back</button>
+          <button class="btn btn-primary" id="runBtn" onclick="runAgent()" style="padding:14px 36px;font-size:16px;">▶ Generate Content</button>
+        </div>
+      </div>
+
+      <div id="runResults"></div>
+    </div>
+  </div>
+
+  <!-- ===================== LIBRARY PAGE ===================== -->
+  <div class="page" id="page-library">
+    <div id="contentList"></div>
+  </div>
+
+  <!-- ===================== HOOKS PAGE ===================== -->
+  <div class="page" id="page-hooks">
+    <div class="card">
+      <h3>Add a Hook</h3>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="newHookText" placeholder="Your hook text..." style="flex:1;" />
+        <select id="newHookCat" style="width:150px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;">
+          <option value="curiosity">Curiosity</option><option value="urgency">Urgency</option>
+          <option value="fomo">FOMO</option><option value="authority">Authority</option>
+          <option value="breaking_news">Breaking News</option><option value="efficiency">Efficiency</option>
+          <option value="value">Value</option><option value="opinion">Opinion</option>
+          <option value="correction">Correction</option><option value="inspiration">Inspiration</option>
+          <option value="suspense">Suspense</option><option value="demo">Demo</option>
+          <option value="insider">Insider</option><option value="general">General</option>
+        </select>
+        <button class="btn btn-primary" onclick="addHook()">Add</button>
+      </div>
+    </div>
+    <div id="hooksList"></div>
+  </div>
+</div>
+
+<script>
+  // ── STATE ──
+  let state = {
+    profile: null,
+    niche: '',
+    selectedPlatforms: [],
+    discoveredSources: {},
+    selectedFeeds: [],
+    selectedPsychographics: [],
+    businessSummary: '',
+  };
+
+  // ── PAGES ──
+  function showPage(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + id).classList.add('active');
+    if (id === 'library') loadContent();
+    if (id === 'hooks') loadHooks();
+  }
+
+  // ── WIZARD STEPS ──
+  function goToStep(n) {
+    document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('step-' + n).classList.add('active');
+    document.querySelectorAll('.wizard-step').forEach((s, i) => {
+      s.classList.remove('active', 'done');
+      if (i + 1 === n) s.classList.add('active');
+      else if (i + 1 < n) s.classList.add('done');
+    });
+    if (n === 3) generatePsychographics();
+    if (n === 4) buildRunSummary();
+  }
+
+  // ── STEP 1: Analyze Website ──
+  async function analyzeSite() {
+    const url = document.getElementById('siteUrl').value.trim();
+    if (!url) return alert('Enter your website URL');
+    const btn = document.getElementById('analyzeBtn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Analyzing...';
+    document.getElementById('profileResult').style.display = 'none';
+
+    try {
+      const res = await fetch('/api/analyze-site', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      state.profile = data.profile;
+      state.businessSummary = data.profile.business_summary;
+      if (!document.getElementById('nicheInput').value && data.profile.key_topics?.length) {
+        document.getElementById('nicheInput').value = data.profile.key_topics.slice(0, 3).join(', ');
+      }
+
+      const p = data.profile;
+      document.getElementById('profileResult').style.display = 'block';
+      document.getElementById('profileResult').innerHTML = `
+        <div class="profile-card">
+          <div class="label">Company</div>
+          <div class="value" style="font-weight:600;font-size:16px;">${esc(p.company_name)}</div>
+          <div class="label">What We Found</div>
+          <div class="value editable-summary" contenteditable="true" id="editableSummary">${esc(p.business_summary)}</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:12px;">☝️ You can edit this if it's not quite right.</div>
+          <div class="label">Topics We Detected</div>
+          <div class="topics">${(p.key_topics || []).map(t => `<span class="topic-tag">${esc(t)}</span>`).join('')}</div>
+        </div>`;
+    } catch (err) {
+      document.getElementById('profileResult').style.display = 'block';
+      document.getElementById('profileResult').innerHTML = `<div style="color:var(--danger);padding:12px;">Error: ${esc(err.message)}. You can skip this and just enter your niche below.</div>`;
+    } finally {
+      btn.disabled = false; btn.textContent = 'Analyze';
+    }
+  }
+
+  // ── STEP 2: Platforms ──
+  function togglePlatform(el) {
+    el.classList.toggle('selected');
+    const p = el.dataset.platform;
+    if (el.classList.contains('selected')) {
+      if (!state.selectedPlatforms.includes(p)) state.selectedPlatforms.push(p);
+    } else {
+      state.selectedPlatforms = state.selectedPlatforms.filter(x => x !== p);
+    }
+  }
+
+  async function discoverSources() {
+    const niche = document.getElementById('nicheInput').value.trim();
+    if (!niche) return alert('Go back and enter your content topic first');
+    if (state.selectedPlatforms.length === 0) return alert('Pick at least one platform');
+
+    state.niche = niche;
+    const summary = document.getElementById('editableSummary')?.textContent || state.businessSummary;
+    state.businessSummary = summary;
+
+    const btn = document.getElementById('discoverBtn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Discovering sources...';
+
+    try {
+      const res = await fetch('/api/discover-sources', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ niche, platforms: state.selectedPlatforms, business_summary: summary }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      state.discoveredSources = data.sources;
+      renderSources(data.sources);
+    } catch (err) {
+      document.getElementById('sourcesResult').style.display = 'block';
+      document.getElementById('sourcesResult').innerHTML = `<div class="card" style="color:var(--danger);">Error: ${esc(err.message)}</div>`;
+    } finally {
+      btn.disabled = false; btn.textContent = 'Find Sources →';
+    }
+  }
+
+  function renderSources(sources) {
+    let html = '';
+    state.selectedFeeds = [];
+
+    if (sources.youtube?.length) {
+      html += `<div class="card"><h3>🎬 YouTube Channels</h3><div class="subtitle">Real subscriber data from YouTube API. Check the channels you want to monitor.</div><div class="source-list">`;
+      sources.youtube.forEach((ch, i) => {
+        html += `<div class="source-item" onclick="toggleSource(this, 'yt-${i}', '${esc(ch.rss_url)}')">
+          <input type="checkbox" id="yt-${i}" />
+          <div class="info"><div class="name">${esc(ch.name)}</div><div class="meta">${esc(ch.description || '')}</div></div>
+          <div class="stat">${formatNum(ch.subscribers)} subs<br>${formatNum(ch.videos)} videos</div>
+        </div>`;
+      });
+      html += '</div></div>';
+    }
+
+    if (sources.reddit?.length) {
+      html += `<div class="card"><h3>📡 Subreddits</h3><div class="subtitle">Top subreddits for your niche. These have free RSS feeds built in.</div><div class="source-list">`;
+      sources.reddit.forEach((sub, i) => {
+        html += `<div class="source-item" onclick="toggleSource(this, 'rd-${i}', '${esc(sub.rss_url)}')">
+          <input type="checkbox" id="rd-${i}" />
+          <div class="info"><div class="name">${esc(sub.display)}</div><div class="meta">${esc(sub.description)}</div></div>
+          <div class="stat"><span class="badge badge-${sub.relevance === 'high' ? 'success' : 'niche'}">${sub.relevance}</span></div>
+        </div>`;
+      });
+      html += '</div></div>';
+    }
+
+    if (sources.news?.length || sources.news_feeds?.length) {
+      html += `<div class="card"><h3>📰 News Sources</h3><div class="subtitle">Google News feed for your topic is auto-included.</div><div class="source-list">`;
+      (sources.news_feeds || sources.news || []).forEach((n, i) => {
+        if (n.rss_url) {
+          state.selectedFeeds.push(n.rss_url); // Auto-select news
+          html += `<div class="source-item selected" onclick="toggleSource(this, 'nw-${i}', '${esc(n.rss_url)}')">
+            <input type="checkbox" id="nw-${i}" checked />
+            <div class="info"><div class="name">${esc(n.name)}</div><div class="meta">${esc(n.description || '')}</div></div>
+          </div>`;
+        }
+      });
+      html += '</div></div>';
+    }
+
+    if (sources.twitter?.length) {
+      html += `<div class="card"><h3>𝕏 Twitter / X Accounts</h3><div class="subtitle">${esc(sources.twitter_note || 'Accounts to follow.')} These are shown for reference — we can\'t pull RSS from X directly.</div><div class="source-list">`;
+      sources.twitter.forEach((acc, i) => {
+        html += `<div class="source-item" style="cursor:default;opacity:0.7;">
+          <div class="info"><div class="name">${esc(acc.handle)} — ${esc(acc.name)}</div><div class="meta">${esc(acc.description)}</div></div>
+          <div class="stat"><a href="${esc(acc.url)}" target="_blank" style="color:var(--blue);font-size:12px;">View →</a></div>
+        </div>`;
+      });
+      html += '</div></div>';
+    }
+
+    document.getElementById('sourcesResult').style.display = 'block';
+    document.getElementById('sourcesResult').innerHTML = html;
+    document.getElementById('sourcesNext').style.display = 'flex';
+  }
+
+  function toggleSource(el, id, rssUrl) {
+    const cb = document.getElementById(id);
+    if (!cb) return;
+    cb.checked = !cb.checked;
+    el.classList.toggle('selected', cb.checked);
+    if (cb.checked) { if (!state.selectedFeeds.includes(rssUrl)) state.selectedFeeds.push(rssUrl); }
+    else { state.selectedFeeds = state.selectedFeeds.filter(u => u !== rssUrl); }
+  }
+
+  // ── STEP 3: Psychographics ──
+  async function generatePsychographics() {
+    if (state.selectedPsychographics.length > 0) return; // Already loaded
+    const el = document.getElementById('psychResult');
+    document.getElementById('psychLoading').style.display = 'block';
+    el.innerHTML = '';
+
+    try {
+      const res = await fetch('/api/generate-psychographics', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          business_summary: state.businessSummary,
+          niche: state.niche || document.getElementById('nicheInput').value,
+          industry: state.profile?.industry || '',
+          target_audience: state.profile?.target_audience || '',
+        }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      const byCategory = {};
+      (data.psychographics || []).forEach(p => {
+        if (!byCategory[p.category]) byCategory[p.category] = [];
+        byCategory[p.category].push(p);
+      });
+
+      const categoryLabels = {
+        pain_points: '😫 Pain Points', motivations: '🎯 Motivations',
+        behaviors: '📱 Behaviors', demographics: '👤 Demographics', values: '💎 Values',
+      };
+
+      let html = '';
+      for (const [cat, items] of Object.entries(byCategory)) {
+        html += `<div class="psych-group"><h4>${categoryLabels[cat] || cat}</h4><div class="psych-chips">`;
+        items.forEach(p => {
+          html += `<div class="psych-chip" onclick="togglePsych(this)" title="${esc(p.description)}">${esc(p.keyword)}</div>`;
+        });
+        html += '</div></div>';
+      }
+      el.innerHTML = html;
+
+      // Auto-select all
+      document.querySelectorAll('.psych-chip').forEach(c => { c.classList.add('selected'); });
+      state.selectedPsychographics = (data.psychographics || []).map(p => p.keyword);
+    } catch (err) {
+      el.innerHTML = `<div style="color:var(--danger);">Error: ${esc(err.message)}</div>`;
+    } finally {
+      document.getElementById('psychLoading').style.display = 'none';
+    }
+  }
+
+  function togglePsych(el) {
+    el.classList.toggle('selected');
+    const kw = el.textContent.trim();
+    if (el.classList.contains('selected')) state.selectedPsychographics.push(kw);
+    else state.selectedPsychographics = state.selectedPsychographics.filter(k => k !== kw);
+  }
+
+  // ── STEP 4: Run ──
+  function buildRunSummary() {
+    const feeds = state.selectedFeeds.length;
+    const psychs = state.selectedPsychographics.length;
+    document.getElementById('runSummary').innerHTML = `
+      <div class="profile-card">
+        <div class="label">Niche</div><div class="value">${esc(state.niche || document.getElementById('nicheInput').value)}</div>
+        <div class="label">Sources</div><div class="value">${feeds} feed${feeds !== 1 ? 's' : ''} selected</div>
+        <div class="label">Audience Traits</div><div class="value">${psychs} selected: ${state.selectedPsychographics.slice(0, 5).join(', ')}${psychs > 5 ? '...' : ''}</div>
+      </div>`;
+  }
+
+  async function runAgent() {
+    if (state.selectedFeeds.length === 0) return alert('No feeds selected. Go back and pick some sources.');
+
+    const btn = document.getElementById('runBtn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Generating...';
+    document.getElementById('runResults').innerHTML = '<div class="loading-card"><span class="spinner"></span><div>Processing articles... this takes about 30 seconds per article.</div></div>';
+
+    const niche = state.niche || document.getElementById('nicheInput').value;
+    const audienceDesc = state.selectedPsychographics.length > 0
+      ? `Audience traits: ${state.selectedPsychographics.join(', ')}` : 'General audience';
+
+    try {
+      const res = await fetch('/api/run', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feed_urls: state.selectedFeeds,
+          niche_name: niche,
+          niche_description: state.businessSummary || niche,
+          audience_description: audienceDesc,
+          max_articles: parseInt(document.getElementById('maxArticles').value) || 10,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      let html = `<div class="card" style="margin-top:20px;"><h3 style="color:var(--accent);">✅ Done — ${data.processed} scripts generated, ${data.skipped} skipped</h3></div>`;
+      for (const r of data.results) {
+        if (r.skipped) {
+          html += `<div class="result-card" style="opacity:0.6;">
+            <div style="display:flex;justify-content:space-between"><div class="title">${esc(r.title || 'Unknown')}</div><span class="badge badge-skip">Skipped</span></div>
+            <div class="summary">${esc(r.reason)}</div></div>`;
+        } else {
+          html += `<div class="result-card">
+            <div style="display:flex;justify-content:space-between"><div class="title"><a href="${esc(r.article_url)}" target="_blank">${esc(r.article_title)}</a></div><span class="badge badge-success">Added</span></div>
+            <div class="hook">${esc(r.hook)}</div>
+            <div class="summary">${esc(r.quick_summary)}</div>
+            <div class="script">${esc(r.short_script)}</div></div>`;
+        }
+      }
+      document.getElementById('runResults').innerHTML = html;
+    } catch (err) {
+      document.getElementById('runResults').innerHTML = `<div class="card" style="color:var(--danger);">Error: ${esc(err.message)}</div>`;
+    } finally {
+      btn.disabled = false; btn.textContent = '▶ Generate Content';
+    }
+  }
+
+  // ── LIBRARY ──
+  async function loadContent() {
+    const res = await fetch('/api/content?limit=50');
+    const items = await res.json();
+    if (items.length === 0) {
+      document.getElementById('contentList').innerHTML = '<div class="empty-state"><div class="icon">📡</div><div>No content yet. Run the wizard to generate scripts.</div></div>';
+      return;
+    }
+    document.getElementById('contentList').innerHTML = items.map(i => `
+      <div class="result-card">
+        <div style="display:flex;justify-content:space-between;align-items:start">
+          <div class="title"><a href="${esc(i.article_url)}" target="_blank">${esc(i.article_title)}</a></div>
+          <button class="btn btn-danger" onclick="deleteContent(${i.id})">Delete</button>
+        </div>
+        <div class="hook">${esc(i.hook)}</div>
+        <div class="summary">${esc(i.quick_summary)}</div>
+        <div class="script">${esc(i.short_script)}</div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text2);">
+          <span class="badge badge-niche">${esc(i.niche)}</span> · ${new Date(i.created_at).toLocaleDateString()}
+        </div>
+      </div>`).join('');
+  }
+
+  async function deleteContent(id) {
+    if (!confirm('Delete?')) return;
+    await fetch(`/api/content/${id}`, { method: 'DELETE' });
+    loadContent();
+  }
+
+  // ── HOOKS ──
+  async function loadHooks() {
+    const res = await fetch('/api/hooks');
+    const hooks = await res.json();
+    if (!hooks.length) { document.getElementById('hooksList').innerHTML = '<div class="empty-state"><div class="icon">🪝</div>No hooks yet.</div>'; return; }
+    let html = '<div class="hooks-grid"><div class="cell header">Hook</div><div class="cell header">Category</div><div class="cell header"></div>';
+    hooks.forEach(h => {
+      html += `<div class="cell">${esc(h.hook_text)}</div><div class="cell"><span class="badge badge-niche">${esc(h.category)}</span></div>
+        <div class="cell"><button class="btn btn-danger" onclick="deleteHook(${h.id})">×</button></div>`;
+    });
+    document.getElementById('hooksList').innerHTML = html + '</div>';
+  }
+
+  async function addHook() {
+    const text = document.getElementById('newHookText').value.trim();
+    if (!text) return;
+    await fetch('/api/hooks', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hook_text: text, category: document.getElementById('newHookCat').value }) });
+    document.getElementById('newHookText').value = '';
+    loadHooks();
+  }
+
+  async function deleteHook(id) {
+    if (!confirm('Delete?')) return;
+    await fetch(`/api/hooks/${id}`, { method: 'DELETE' });
+    loadHooks();
+  }
+
+  // ── UTILS ──
+  function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function formatNum(n) { if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'; if (n >= 1000) return (n / 1000).toFixed(1) + 'K'; return n; }
+</script>
+</body>
+</html>
